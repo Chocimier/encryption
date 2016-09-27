@@ -1,19 +1,21 @@
 #include <QString>
+#include <QFile>
 
 #include "EncryptedFile.h"
 
 int main(int argc, char *argv[])
 {
-	EncryptedFile file("./plik.enc", NULL);
-	file.setKey(QString("klucz\n").toUtf8());
-	file.open(QIODevice::WriteOnly | QIODevice::Text);
+	QFile file("plik.enc");
+	EncryptedFile encryptor(&file);
+	encryptor.setKey(QString("klucz\n").toUtf8());
+	encryptor.open(QIODevice::WriteOnly | QIODevice::Text);
 
 	for(int i = 0; i <= 1000; ++i)
 	{
-		file.write(QString::number(i).toUtf8() + "\n");
+		encryptor.write(QString::number(i).toUtf8() + "\n");
 	}
 
-	file.close();
+	encryptor.close();
 
 	return 0;
 }

@@ -1,7 +1,7 @@
 #include "EncryptedFile.h"
 
-EncryptedFile::EncryptedFile(QObject *parent) : QIODevice(parent),
-	m_file(nullptr),
+EncryptedFile::EncryptedFile(QIODevice *targetDevice, QObject *parent) : QIODevice(parent),
+	m_device(nullptr),
 	m_writingBuffered(0),
 	m_hasKey(false),
 	m_initialized(false),
@@ -45,20 +45,17 @@ EncryptedFile::EncryptedFile(QObject *parent) : QIODevice(parent),
 	}
 
 	m_initialized = true;
-}
 
-EncryptedFile::EncryptedFile(const QString &name, QObject *parent) : EncryptedFile(parent)
-{
-	m_file = new QFile(name, this);
+	m_device = targetDevice;
 }
 
 void EncryptedFile::close()
 {
 	writeBuffer();
 
-	m_file->close();
+	m_device->close();
 
-	setOpenMode(m_file->openMode());
+	setOpenMode(m_device->openMode());
 }
 
 bool EncryptedFile::isSequential() const
@@ -83,12 +80,12 @@ bool EncryptedFile::open(QIODevice::OpenMode mode)
 		return false;
 	}
 
-	if (!m_file->open(mode))
+	if (!m_device->open(mode))
 	{
 		return false;
 	}
 
-	setOpenMode(m_file->openMode());
+	setOpenMode(m_device->openMode());
 
 	if (mode & QIODevice::ReadOnly)
 	{
@@ -96,8 +93,8 @@ bool EncryptedFile::open(QIODevice::OpenMode mode)
 
 		if (!m_readingInitialized)
 		{
-			m_file->close();
-			setOpenMode(m_file->openMode());
+			m_device->close();
+			setOpenMode(m_device->openMode());
 
 			return false;
 		}
@@ -108,8 +105,8 @@ bool EncryptedFile::open(QIODevice::OpenMode mode)
 
 		if (!m_writingInitialized)
 		{
-			m_file->close();
-			setOpenMode(m_file->openMode());
+			m_device->close();
+			setOpenMode(m_device->openMode());
 
 			return false;
 		}
@@ -127,11 +124,6 @@ void EncryptedFile::setKey(const QByteArray &plainKey)
 	}
 
 	m_hasKey = true;
-}
-
-void EncryptedFile::setFile(QFile *file)
-{
-	m_file = file;
 }
 
 qint64 EncryptedFile::readData(char *data, qint64 len)
@@ -190,7 +182,7 @@ bool EncryptedFile::writeBuffer()
 		return false;
 	}
 
-	if (m_file->write(reinterpret_cast<const char*>(ciphertext), m_writingBuffered) == -1)
+	if (m_device->write(reinterpret_cast<const char*>(ciphertext), m_writingBuffered) == -1)
 	{
 		return false;
 	}
@@ -221,7 +213,7 @@ void EncryptedFile::initWriting()
 
 	m_writingInitialized = true;
 
-	if (m_file->write(reinterpret_cast<const char*>(initialVector), m_initialVectorSize) != m_initialVectorSize)
+	if (m_device->write(reinterpret_cast<const char*>(initialVector), m_initialVectorSize) != m_initialVectorSize)
 	{
 		m_writingInitialized = false;
 

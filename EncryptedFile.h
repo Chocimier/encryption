@@ -1,7 +1,6 @@
 #ifndef ENCRYPTEDFILE_H
 #define ENCRYPTEDFILE_H
 
-#include <QtCore/QFile>
 #include <QtCore/QIODevice>
 
 #include <tomcrypt.h>
@@ -11,15 +10,13 @@ class EncryptedFile : public QIODevice
 	Q_OBJECT
 
 public:
-	explicit EncryptedFile(QObject *parent = 0);
-	explicit EncryptedFile(const QString &name, QObject *parent = 0);
+	explicit EncryptedFile(QIODevice *targetDevice, QObject *parent = 0);
 
 	void close();
 	bool isSequential() const;
 	bool open(OpenMode mode);
 
 	void setKey(const QByteArray &plainKey);
-	void setFile(QFile *file);
 
 protected:
 	qint64 readData(char *data, qint64 len);
@@ -30,7 +27,7 @@ protected:
 	void initReading();
 
 private:
-	QFile *m_file;
+	QIODevice *m_device;
 	symmetric_CTR m_ctr;
 	unsigned char m_key[MAXBLOCKSIZE];
 	unsigned char m_writingBuffer[512];
