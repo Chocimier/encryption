@@ -36,7 +36,7 @@ private:
 	int m_readingBuffered;
 	int m_writingBuffered;
 	int m_keySize;
-	int m_initialVectorSize;
+	int m_initializationVectorSize;
 	bool m_hasKey;
 	bool m_initialized;
 	bool m_writingInitialized;

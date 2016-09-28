@@ -7,7 +7,7 @@ EncryptedFile::EncryptedFile(QIODevice *targetDevice, QObject *parent) : QIODevi
 	m_hasKey(false),
 	m_initialized(false),
 	m_writingInitialized(false),
-	m_readingInitialized(true)
+	m_readingInitialized(false)
 {
 	register_cipher(&aes_desc);
 
@@ -38,7 +38,7 @@ EncryptedFile::EncryptedFile(QIODevice *targetDevice, QObject *parent) : QIODevi
 		return;
 	}
 
-	m_initialVectorSize = cipher_descriptor[m_cipherIndex].block_length;
+	m_initializationVectorSize = cipher_descriptor[m_cipherIndex].block_length;
 	m_keySize = hash_descriptor[m_hashIndex].hashsize;
 	if (cipher_descriptor[m_cipherIndex].keysize(&m_keySize) != CRYPT_OK)
 	{
@@ -79,7 +79,7 @@ bool EncryptedFile::open(QIODevice::OpenMode mode)
 		return false;
 	}
 
-	if ((mode & QIODevice::ReadWrite) == QIODevice::ReadWrite || (mode & QIODevice::Append))
+	if (mode.testFlag(QIODevice::ReadWrite) || mode.testFlag(QIODevice::Append))
 	{
 		return false;
 	}
@@ -91,7 +91,7 @@ bool EncryptedFile::open(QIODevice::OpenMode mode)
 
 	setOpenMode(m_device->openMode());
 
-	if (mode & QIODevice::ReadOnly)
+	if (mode.testFlag(QIODevice::ReadOnly))
 	{
 		initReading();
 
@@ -103,7 +103,7 @@ bool EncryptedFile::open(QIODevice::OpenMode mode)
 			return false;
 		}
 	}
-	else if (mode & QIODevice::WriteOnly)
+	else if (mode.testFlag(QIODevice::WriteOnly))
 	{
 		initWriting();
 
@@ -124,7 +124,7 @@ void EncryptedFile::setKey(const QByteArray &plainKey)
 	unsigned long outlen = sizeof(m_key);
 	m_hasKey = false;
 
-	if ((errno = hash_memory(m_hashIndex, reinterpret_cast<const unsigned char*>(plainKey.constData()), plainKey.size(), m_key, &outlen)) != CRYPT_OK)
+	if (hash_memory(m_hashIndex, reinterpret_cast<const unsigned char*>(plainKey.constData()), plainKey.size(), m_key, &outlen) != CRYPT_OK)
 	{
 		return;
 	}
@@ -156,7 +156,7 @@ qint64 EncryptedFile::readData(char *data, qint64 len)
 			return -1;
 		}
 
-		if ((errno = ctr_decrypt(ciphertext,m_readingBuffer,bytesRead,&m_ctr)) != CRYPT_OK)
+		if (ctr_decrypt(ciphertext,m_readingBuffer,bytesRead,&m_ctr) != CRYPT_OK)
 		{
 			return -1;
 		}
@@ -222,7 +222,7 @@ bool EncryptedFile::writeBuffer()
 {
 	unsigned char ciphertext[sizeof (m_writingBuffer)];
 
-	if ((errno = ctr_encrypt(m_writingBuffer, ciphertext, m_writingBuffered, &m_ctr)) != CRYPT_OK)
+	if (ctr_encrypt(m_writingBuffer, ciphertext, m_writingBuffered, &m_ctr) != CRYPT_OK)
 	{
 		return false;
 	}
@@ -240,25 +240,25 @@ bool EncryptedFile::writeBuffer()
 void EncryptedFile::initWriting()
 {
 	prng_state prng;
-	unsigned char initialVector[MAXBLOCKSIZE];
+	unsigned char initializationVector[MAXBLOCKSIZE];
 
 	rng_make_prng(128, find_prng("yarrow"), &prng, NULL);
 
-	int randomBytesRead = yarrow_read(initialVector, m_initialVectorSize, &prng);
+	int randomBytesRead = yarrow_read(initializationVector, m_initializationVectorSize, &prng);
 
-	if (randomBytesRead != m_initialVectorSize)
+	if (randomBytesRead != m_initializationVectorSize)
 	{
 		return;
 	}
 
-	if ((errno = ctr_start(m_cipherIndex, initialVector, m_key, m_keySize, 0, CTR_COUNTER_LITTLE_ENDIAN, &m_ctr)) != CRYPT_OK)
+	if (ctr_start(m_cipherIndex, initializationVector, m_key, m_keySize, 0, CTR_COUNTER_LITTLE_ENDIAN, &m_ctr) != CRYPT_OK)
 	{
 		return;
 	}
 
 	m_writingInitialized = true;
 
-	if (m_device->write(reinterpret_cast<const char*>(initialVector), m_initialVectorSize) != m_initialVectorSize)
+	if (m_device->write(reinterpret_cast<const char*>(initializationVector), m_initializationVectorSize) != m_initializationVectorSize)
 	{
 		m_writingInitialized = false;
 
@@ -268,18 +268,18 @@ void EncryptedFile::initWriting()
 
 void EncryptedFile::initReading()
 {
-	unsigned char initialVector[MAXBLOCKSIZE];
+	unsigned char initializationVector[MAXBLOCKSIZE];
 
 	m_readingInitialized = true;
 
-	if (m_device->read(reinterpret_cast<char*>(initialVector), m_initialVectorSize) != m_initialVectorSize)
+	if (m_device->read(reinterpret_cast<char*>(initializationVector), m_initializationVectorSize) != m_initializationVectorSize)
 	{
 		m_readingInitialized = false;
 
 		return;
 	}
 
-	if ((errno = ctr_start(m_cipherIndex, initialVector, m_key, m_keySize, 0, CTR_COUNTER_LITTLE_ENDIAN, &m_ctr)) != CRYPT_OK)
+	if (ctr_start(m_cipherIndex, initializationVector, m_key, m_keySize, 0, CTR_COUNTER_LITTLE_ENDIAN, &m_ctr) != CRYPT_OK)
 	{
 		m_readingInitialized = false;
 
