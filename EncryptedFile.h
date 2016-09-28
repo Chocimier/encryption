@@ -41,6 +41,8 @@ private:
 	bool m_initialized;
 	bool m_writingInitialized;
 	bool m_readingInitialized;
+
+	static char m_header[];
 };
 
 #endif

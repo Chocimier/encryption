@@ -1,5 +1,7 @@
 #include "EncryptedFile.h"
 
+char EncryptedFile::m_header[] = {'E', 'F', '1'};
+
 EncryptedFile::EncryptedFile(QIODevice *targetDevice, QObject *parent) : QIODevice(parent),
 	m_device(nullptr),
 	m_readingBuffered(0),
@@ -258,6 +260,13 @@ void EncryptedFile::initWriting()
 
 	m_writingInitialized = true;
 
+	if (m_device->write(m_header, sizeof (m_header)) != sizeof (m_header))
+	{
+		m_writingInitialized = false;
+
+		return;
+	}
+
 	if (m_device->write(reinterpret_cast<const char*>(initializationVector), m_initializationVectorSize) != m_initializationVectorSize)
 	{
 		m_writingInitialized = false;
@@ -271,6 +280,15 @@ void EncryptedFile::initReading()
 	unsigned char initializationVector[MAXBLOCKSIZE];
 
 	m_readingInitialized = true;
+
+	char header[sizeof (m_header)];
+
+	if (m_device->read(header, sizeof (m_header)) != sizeof (m_header) || memcmp(m_header, header, sizeof (m_header)))
+	{
+		m_readingInitialized = false;
+
+		return;
+	}
 
 	if (m_device->read(reinterpret_cast<char*>(initializationVector), m_initializationVectorSize) != m_initializationVectorSize)
 	{
