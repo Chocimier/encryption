@@ -2,6 +2,7 @@
 
 EncryptedFile::EncryptedFile(QIODevice *targetDevice, QObject *parent) : QIODevice(parent),
 	m_device(nullptr),
+	m_readingBuffered(0),
 	m_writingBuffered(0),
 	m_hasKey(false),
 	m_initialized(false),
@@ -51,11 +52,14 @@ EncryptedFile::EncryptedFile(QIODevice *targetDevice, QObject *parent) : QIODevi
 
 void EncryptedFile::close()
 {
-	writeBuffer();
+	if (openMode().testFlag(QIODevice::WriteOnly))
+	{
+		writeBuffer();
 
-	m_device->close();
+		m_device->close();
 
-	setOpenMode(m_device->openMode());
+		setOpenMode(m_device->openMode());
+	}
 }
 
 bool EncryptedFile::isSequential() const
@@ -111,6 +115,8 @@ bool EncryptedFile::open(QIODevice::OpenMode mode)
 			return false;
 		}
 	}
+
+	return true;
 }
 
 void EncryptedFile::setKey(const QByteArray &plainKey)
@@ -128,12 +134,51 @@ void EncryptedFile::setKey(const QByteArray &plainKey)
 
 qint64 EncryptedFile::readData(char *data, qint64 len)
 {
+	unsigned char ciphertext[sizeof (m_readingBuffer)];
+	qint64 pos = 0;
 
-}
+	if (m_readingBuffered)
+	{
+		qint64 bytesToCopy = qMin(qint64(m_readingBuffered), len);
 
-qint64 EncryptedFile::readLineData(char *data, qint64 maxlen)
-{
+		memcpy(data, &m_readingBuffer[(sizeof (m_readingBuffer)) - m_readingBuffered], bytesToCopy);
 
+		pos += bytesToCopy;
+		m_readingBuffered -= bytesToCopy;
+	}
+
+	while (pos < len)
+	{
+		qint64 bytesRead = m_device->read(reinterpret_cast<char*>(ciphertext), sizeof (ciphertext));
+
+		if (bytesRead == -1)
+		{
+			return -1;
+		}
+
+		if ((errno = ctr_decrypt(ciphertext,m_readingBuffer,bytesRead,&m_ctr)) != CRYPT_OK)
+		{
+			return -1;
+		}
+
+		qint64 bytesToCopy = qMin(bytesRead, (len - pos));
+
+		if (bytesToCopy < bytesRead)
+		{
+			m_readingBuffered = bytesRead - bytesToCopy;
+		}
+
+		memcpy(&data[pos], m_readingBuffer, bytesToCopy);
+
+		pos += bytesToCopy;
+
+		if (bytesRead < sizeof (ciphertext))
+		{
+			break;
+		}
+	}
+
+	return pos;
 }
 
 qint64 EncryptedFile::writeData(const char *data, qint64 len)
@@ -223,5 +268,21 @@ void EncryptedFile::initWriting()
 
 void EncryptedFile::initReading()
 {
-	;
+	unsigned char initialVector[MAXBLOCKSIZE];
+
+	m_readingInitialized = true;
+
+	if (m_device->read(reinterpret_cast<char*>(initialVector), m_initialVectorSize) != m_initialVectorSize)
+	{
+		m_readingInitialized = false;
+
+		return;
+	}
+
+	if ((errno = ctr_start(m_cipherIndex, initialVector, m_key, m_keySize, 0, CTR_COUNTER_LITTLE_ENDIAN, &m_ctr)) != CRYPT_OK)
+	{
+		m_readingInitialized = false;
+
+		return;
+	}
 }

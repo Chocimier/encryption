@@ -3,19 +3,35 @@
 
 #include "EncryptedFile.h"
 
-int main(int argc, char *argv[])
+int main()
 {
+	QString key("klucz\n");
+
+	QFile sourceFile("EncryptedFile.cpp");
 	QFile file("plik.enc");
 	EncryptedFile encryptor(&file);
-	encryptor.setKey(QString("klucz\n").toUtf8());
-	encryptor.open(QIODevice::WriteOnly | QIODevice::Text);
+	encryptor.setKey(key.toUtf8());
 
-	for(int i = 0; i <= 1000; ++i)
-	{
-		encryptor.write(QString::number(i).toUtf8() + "\n");
-	}
+	sourceFile.open(QIODevice::ReadOnly);
+	encryptor.open(QIODevice::WriteOnly);
+
+	encryptor.write(sourceFile.readAll());
 
 	encryptor.close();
+	sourceFile.close();
+
+	QFile file2("plik.enc");
+	QFile file3("plik.dec");
+	EncryptedFile decryptor(&file2);
+	decryptor.setKey(key.toUtf8());
+
+	decryptor.open(QIODevice::ReadOnly);
+	file3.open(QIODevice::WriteOnly);
+
+	file3.write(decryptor.readAll());
+
+	decryptor.close();
+	sourceFile.close();
 
 	return 0;
 }

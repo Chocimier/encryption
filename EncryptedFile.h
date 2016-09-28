@@ -20,7 +20,6 @@ public:
 
 protected:
 	qint64 readData(char *data, qint64 len);
-	qint64 readLineData(char *data, qint64 maxlen);
 	qint64 writeData(const char *data, qint64 len);
 	bool writeBuffer();
 	void initWriting();
@@ -30,9 +29,11 @@ private:
 	QIODevice *m_device;
 	symmetric_CTR m_ctr;
 	unsigned char m_key[MAXBLOCKSIZE];
+	unsigned char m_readingBuffer[512];
 	unsigned char m_writingBuffer[512];
 	int m_cipherIndex;
 	int m_hashIndex;
+	int m_readingBuffered;
 	int m_writingBuffered;
 	int m_keySize;
 	int m_initialVectorSize;
