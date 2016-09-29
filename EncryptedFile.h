@@ -29,13 +29,14 @@ private:
 	QIODevice *m_device;
 	symmetric_CTR m_ctr;
 	unsigned char m_key[MAXBLOCKSIZE];
-	unsigned char m_readingBuffer[512];
-	unsigned char m_writingBuffer[512];
+	unsigned char m_readingBuffer[MAXBLOCKSIZE];
+	unsigned char m_writingBuffer[MAXBLOCKSIZE];
 	int m_cipherIndex;
 	int m_hashIndex;
 	int m_readingBuffered;
 	int m_writingBuffered;
 	int m_keySize;
+	int m_blockSize;
 	int m_initializationVectorSize;
 	bool m_hasKey;
 	bool m_initialized;

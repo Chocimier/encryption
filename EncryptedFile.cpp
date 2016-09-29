@@ -40,8 +40,10 @@ EncryptedFile::EncryptedFile(QIODevice *targetDevice, QObject *parent) : QIODevi
 		return;
 	}
 
-	m_initializationVectorSize = cipher_descriptor[m_cipherIndex].block_length;
 	m_keySize = hash_descriptor[m_hashIndex].hashsize;
+	m_blockSize = cipher_descriptor[m_cipherIndex].block_length;
+	m_initializationVectorSize = cipher_descriptor[m_cipherIndex].block_length;
+
 	if (cipher_descriptor[m_cipherIndex].keysize(&m_keySize) != CRYPT_OK)
 	{
 		return;
@@ -136,14 +138,14 @@ void EncryptedFile::setKey(const QByteArray &plainKey)
 
 qint64 EncryptedFile::readData(char *data, qint64 len)
 {
-	unsigned char ciphertext[sizeof (m_readingBuffer)];
+	unsigned char ciphertext[m_blockSize];
 	qint64 pos = 0;
 
 	if (m_readingBuffered)
 	{
 		qint64 bytesToCopy = qMin(qint64(m_readingBuffered), len);
 
-		memcpy(data, &m_readingBuffer[(sizeof (m_readingBuffer)) - m_readingBuffered], bytesToCopy);
+		memcpy(data, &m_readingBuffer[m_blockSize - m_readingBuffered], bytesToCopy);
 
 		pos += bytesToCopy;
 		m_readingBuffered -= bytesToCopy;
@@ -151,7 +153,7 @@ qint64 EncryptedFile::readData(char *data, qint64 len)
 
 	while (pos < len)
 	{
-		qint64 bytesRead = m_device->read(reinterpret_cast<char*>(ciphertext), sizeof (ciphertext));
+		qint64 bytesRead = m_device->read(reinterpret_cast<char*>(ciphertext), m_blockSize);
 
 		if (bytesRead == -1)
 		{
@@ -174,7 +176,7 @@ qint64 EncryptedFile::readData(char *data, qint64 len)
 
 		pos += bytesToCopy;
 
-		if (bytesRead < sizeof (ciphertext))
+		if (bytesRead < m_blockSize)
 		{
 			break;
 		}
@@ -199,14 +201,14 @@ qint64 EncryptedFile::writeData(const char *data, qint64 len)
 
 	while (pos != len)
 	{
-		int bytesToCopy = qMin(qint64(sizeof (m_writingBuffer) - m_writingBuffered), (len - pos));
+		int bytesToCopy = qMin(qint64(m_blockSize - m_writingBuffered), (len - pos));
 
 		memcpy(&m_writingBuffer[m_writingBuffered], &data[pos], bytesToCopy);
 
 		m_writingBuffered += bytesToCopy;
 		pos += bytesToCopy;
 
-		if (m_writingBuffered != sizeof (m_writingBuffer))
+		if (m_writingBuffered != m_blockSize)
 		{
 			break;
 		}
@@ -222,7 +224,7 @@ qint64 EncryptedFile::writeData(const char *data, qint64 len)
 
 bool EncryptedFile::writeBuffer()
 {
-	unsigned char ciphertext[sizeof (m_writingBuffer)];
+	unsigned char ciphertext[m_blockSize];
 
 	if (ctr_encrypt(m_writingBuffer, ciphertext, m_writingBuffered, &m_ctr) != CRYPT_OK)
 	{
