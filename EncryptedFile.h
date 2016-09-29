@@ -39,9 +39,8 @@ private:
 	int m_blockSize;
 	int m_initializationVectorSize;
 	bool m_hasKey;
-	bool m_initialized;
-	bool m_writingInitialized;
-	bool m_readingInitialized;
+	bool m_isValid;
+	bool m_readAll;
 
 	static char m_header[];
 };
