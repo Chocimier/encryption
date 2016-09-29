@@ -97,7 +97,7 @@ void EncryptedFile::setKey(const QByteArray &plainKey)
 
 qint64 EncryptedFile::readData(char *data, qint64 length)
 {
-	unsigned char ciphertext[m_blockSize] = {};
+	unsigned char ciphertext[MAXBLOCKSIZE] = {};
 	qint64 position(0);
 
 	if (!m_isValid || (m_readAll && m_readingBuffered == 0))
@@ -187,7 +187,7 @@ qint64 EncryptedFile::writeData(const char *data, qint64 length)
 
 bool EncryptedFile::writeBufferEncrypted()
 {
-	unsigned char ciphertext[m_blockSize] = {};
+	unsigned char ciphertext[MAXBLOCKSIZE] = {};
 
 	if (ctr_encrypt(m_writingBuffer, ciphertext, m_writingBuffered, &m_ctr) != CRYPT_OK)
 	{
