@@ -66,7 +66,7 @@ qt5_add_resources(res
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
 
-add_definitions(-DLTC_SOURCE)
+add_definitions(-DLTC_SOURCE -DLTC_NO_PROTOTYPES)
 include_directories(libtomcrypt/headers)
 add_executable(${project_name} ${project_src} ${ui} ${res})
 qt5_use_modules(${project_name} ${qt_modules})
