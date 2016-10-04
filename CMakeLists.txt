@@ -4,42 +4,41 @@ set(project_name crypt-device)
 set(project_src
 	main.cpp
 	EncryptedFile.cpp
-	libtomcrypt/hashes/sha2/sha256.c
-	libtomcrypt/hashes/helper/hash_memory.c
-	libtomcrypt/prngs/rng_make_prng.c
-	libtomcrypt/prngs/yarrow.c
-	libtomcrypt/prngs/sprng.c
-	libtomcrypt/prngs/rng_get_bytes.c
-	libtomcrypt/prngs/fortuna.c
 	libtomcrypt/ciphers/aes/aes.c
 	libtomcrypt/ciphers/aes/aes_tab.c
-	libtomcrypt/modes/cbc/cbc_setiv.c
-	libtomcrypt/modes/cbc/cbc_decrypt.c
-	libtomcrypt/modes/cbc/cbc_encrypt.c
-	libtomcrypt/modes/cbc/cbc_done.c
-	libtomcrypt/modes/cbc/cbc_getiv.c
-	libtomcrypt/modes/cbc/cbc_start.c
-	libtomcrypt/modes/ctr/ctr_done.c
-	libtomcrypt/modes/ctr/ctr_getiv.c
-	libtomcrypt/modes/ctr/ctr_test.c
-	libtomcrypt/modes/ctr/ctr_start.c
-	libtomcrypt/modes/ctr/ctr_encrypt.c
-	libtomcrypt/modes/ctr/ctr_setiv.c
-	libtomcrypt/modes/ctr/ctr_decrypt.c
-	libtomcrypt/misc/crypt/crypt_cipher_descriptor.c
+	libtomcrypt/hashes/helper/hash_memory.c
+	libtomcrypt/hashes/sha2/sha256.c
+	libtomcrypt/mac/hmac/hmac_done.c
+	libtomcrypt/mac/hmac/hmac_init.c
+	libtomcrypt/mac/hmac/hmac_memory.c
+	libtomcrypt/mac/hmac/hmac_process.c
+	libtomcrypt/mac/hmac/hmac_test.c
 	libtomcrypt/misc/crypt/crypt_argchk.c
-	libtomcrypt/misc/crypt/crypt_prng_is_valid.c
-	libtomcrypt/misc/crypt/crypt_register_prng.c
-	libtomcrypt/misc/crypt/crypt_find_prng.c
-	libtomcrypt/misc/crypt/crypt_prng_descriptor.c
+	libtomcrypt/misc/crypt/crypt_cipher_descriptor.c
 	libtomcrypt/misc/crypt/crypt_cipher_is_valid.c
-	libtomcrypt/misc/crypt/crypt_register_cipher.c
-	libtomcrypt/misc/crypt/crypt_hash_is_valid.c
 	libtomcrypt/misc/crypt/crypt_find_cipher.c
-	libtomcrypt/misc/crypt/crypt_register_hash.c
 	libtomcrypt/misc/crypt/crypt_find_hash.c
+	libtomcrypt/misc/crypt/crypt_find_prng.c
 	libtomcrypt/misc/crypt/crypt_hash_descriptor.c
+	libtomcrypt/misc/crypt/crypt_hash_is_valid.c
+	libtomcrypt/misc/crypt/crypt_prng_descriptor.c
+	libtomcrypt/misc/crypt/crypt_prng_is_valid.c
+	libtomcrypt/misc/crypt/crypt_register_cipher.c
+	libtomcrypt/misc/crypt/crypt_register_hash.c
+	libtomcrypt/misc/crypt/crypt_register_prng.c
+	libtomcrypt/misc/pkcs5/pkcs_5_2.c
 	libtomcrypt/misc/zeromem.c
+	libtomcrypt/modes/ctr/ctr_decrypt.c
+	libtomcrypt/modes/ctr/ctr_done.c
+	libtomcrypt/modes/ctr/ctr_encrypt.c
+	libtomcrypt/modes/ctr/ctr_getiv.c
+	libtomcrypt/modes/ctr/ctr_setiv.c
+	libtomcrypt/modes/ctr/ctr_start.c
+	libtomcrypt/modes/ctr/ctr_test.c
+	libtomcrypt/prngs/fortuna.c
+	libtomcrypt/prngs/rng_get_bytes.c
+	libtomcrypt/prngs/rng_make_prng.c
+	libtomcrypt/prngs/sprng.c
 )
 set(project_ui
 )

@@ -1,12 +1,16 @@
 #include "EncryptedFile.h"
 
 char EncryptedFile::m_header[]{'E', 'F', '1'};
+int EncryptedFile::m_PKCSIterationCount = 100;
+int EncryptedFile::m_PKCSSaltSize = 128;
+int EncryptedFile::m_PKCSResultSize = 256;
+int EncryptedFile::m_ctrMode = CTR_COUNTER_LITTLE_ENDIAN;
 
 EncryptedFile::EncryptedFile(QIODevice *targetDevice, QObject *parent) : QIODevice(parent),
 	m_device(targetDevice),
 	m_readingBuffered(0),
 	m_writingBuffered(0),
-	m_hasKey(false),
+	m_hasPlainKey(false),
 	m_isValid(false),
 	m_readAll(false)
 {
@@ -16,10 +20,11 @@ EncryptedFile::EncryptedFile(QIODevice *targetDevice, QObject *parent) : QIODevi
 	m_cipherIndex = find_cipher("aes");
 	m_hashIndex = find_hash("sha256");
 
-	if (m_cipherIndex == -1  || m_hashIndex == -1 || register_prng(&yarrow_desc) == -1 || register_prng(&sprng_desc) == -1)
+	if (m_cipherIndex == -1  || m_hashIndex == -1 || register_prng(&fortuna_desc) == -1 || register_prng(&sprng_desc) == -1)
 	{
 		return;
 	}
+
 
 	m_keySize = hash_descriptor[m_hashIndex].hashsize;
 	m_blockSize = cipher_descriptor[m_cipherIndex].block_length;
@@ -59,7 +64,7 @@ bool EncryptedFile::open(QIODevice::OpenMode mode)
 		return true;
 	}
 
-	if (!m_isValid || !m_hasKey || mode.testFlag(QIODevice::ReadWrite) || mode.testFlag(QIODevice::Append) || !m_device->open(mode))
+	if (!m_isValid || !m_hasPlainKey || mode.testFlag(QIODevice::ReadWrite) || mode.testFlag(QIODevice::Append) || !m_device->open(mode))
 	{
 		return false;
 	}
@@ -89,10 +94,8 @@ bool EncryptedFile::open(QIODevice::OpenMode mode)
 
 void EncryptedFile::setKey(const QByteArray &plainKey)
 {
-	unsigned long outlen(sizeof m_key);
-
-	m_hasKey = (hash_memory(m_hashIndex, reinterpret_cast<const unsigned char*>(plainKey.constData()), plainKey.size(), m_key, &outlen) == CRYPT_OK);
-
+	m_plainKey = plainKey;
+	m_hasPlainKey = true;
 }
 
 qint64 EncryptedFile::readData(char *data, qint64 length)
@@ -215,8 +218,8 @@ bool EncryptedFile::writeBufferEncrypted()
 
 void EncryptedFile::initReading()
 {
-	unsigned char initializationVector[MAXBLOCKSIZE] = {};
-	char header[sizeof m_header] = {};
+	char header[sizeof m_header]{};
+	unsigned char salt[m_PKCSSaltSize]{};
 
 	if ((m_device->read(header, sizeof m_header) != sizeof m_header) || memcmp(m_header, header, sizeof m_header))
 	{
@@ -225,14 +228,16 @@ void EncryptedFile::initReading()
 		return;
 	}
 
-	if (m_device->read(reinterpret_cast<char*>(initializationVector), m_initializationVectorSize) != m_initializationVectorSize)
+	if (m_device->read(reinterpret_cast<char*>(salt), sizeof salt) != sizeof salt)
 	{
 		m_isValid = false;
 
 		return;
 	}
 
-	if (ctr_start(m_cipherIndex, initializationVector, m_key, m_keySize, 0, CTR_COUNTER_LITTLE_ENDIAN, &m_ctr) != CRYPT_OK)
+	applyPKCS(salt);
+
+	if (ctr_start(m_cipherIndex, m_initializationVector, m_key, m_keySize, 0, m_ctrMode, &m_ctr) != CRYPT_OK)
 	{
 		m_isValid = false;
 
@@ -242,21 +247,28 @@ void EncryptedFile::initReading()
 
 void EncryptedFile::initWriting()
 {
+	unsigned char salt[m_PKCSSaltSize]{};
 	prng_state prng;
-	unsigned char initializationVector[MAXBLOCKSIZE] = {};
 
-	rng_make_prng(128, find_prng("yarrow"), &prng, NULL);
+	rng_make_prng(128, find_prng("fortuna"), &prng, NULL);
 
-	const int randomBytesRead(yarrow_read(initializationVector, m_initializationVectorSize, &prng));
+	const int randomBytesRead(fortuna_read(salt, sizeof salt, &prng));
 
-	if (randomBytesRead != m_initializationVectorSize)
+	if (randomBytesRead != sizeof salt)
 	{
 		m_isValid = false;
 
 		return;
 	}
 
-	if (ctr_start(m_cipherIndex, initializationVector, m_key, m_keySize, 0, CTR_COUNTER_LITTLE_ENDIAN, &m_ctr) != CRYPT_OK)
+	if (!applyPKCS(salt))
+	{
+		m_isValid = false;
+
+		return;
+	}
+
+	if (ctr_start(m_cipherIndex, m_initializationVector, m_key, m_keySize, 0, m_ctrMode, &m_ctr) != CRYPT_OK)
 	{
 		m_isValid = false;
 
@@ -270,10 +282,27 @@ void EncryptedFile::initWriting()
 		return;
 	}
 
-	if (m_device->write(reinterpret_cast<const char*>(initializationVector), m_initializationVectorSize) != m_initializationVectorSize)
+	if (m_device->write(reinterpret_cast<const char*>(salt), sizeof salt) != sizeof salt)
 	{
 		m_isValid = false;
 
 		return;
 	}
+}
+
+bool EncryptedFile::applyPKCS(const unsigned char *salt)
+{
+	unsigned char PKCSResult[m_PKCSResultSize]{};
+	unsigned long outputLength(sizeof PKCSResult);
+
+	if (pkcs_5_alg2(reinterpret_cast<const unsigned char*>(m_plainKey.constData()), m_plainKey.size(), salt, m_PKCSSaltSize, m_PKCSIterationCount, m_hashIndex, PKCSResult, &outputLength) != CRYPT_OK)
+	{
+		return false;
+	}
+
+	memcpy(m_key, PKCSResult, m_keySize);
+	memcpy(m_initializationVector, (PKCSResult + m_keySize), m_initializationVectorSize);
+
+	return true;
+
 }

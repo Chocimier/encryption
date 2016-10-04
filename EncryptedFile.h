@@ -23,11 +23,14 @@ protected:
 	bool writeBufferEncrypted();
 	void initReading();
 	void initWriting();
+	bool applyPKCS(const unsigned char *salt);
 
 private:
 	QIODevice *m_device;
+	QByteArray m_plainKey;
 	symmetric_CTR m_ctr;
 	unsigned char m_key[MAXBLOCKSIZE];
+	unsigned char m_initializationVector[MAXBLOCKSIZE];
 	unsigned char m_readingBuffer[MAXBLOCKSIZE];
 	unsigned char m_writingBuffer[MAXBLOCKSIZE];
 	qint64 m_readingBuffered;
@@ -37,11 +40,15 @@ private:
 	int m_initializationVectorSize;
 	int m_keySize;
 	int m_writingBuffered;
-	bool m_hasKey;
+	bool m_hasPlainKey;
 	bool m_isValid;
 	bool m_readAll;
 
 	static char m_header[];
+	static int m_PKCSIterationCount;
+	static int m_PKCSSaltSize;
+	static int m_PKCSResultSize;
+	static int m_ctrMode;
 };
 
 #endif
