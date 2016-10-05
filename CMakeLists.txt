@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 2.8)
 set(project_name crypt-device)
 set(project_src
 	main.cpp
+	CustomDevice.cpp
 	EncryptedFile.cpp
 	libtomcrypt/ciphers/aes/aes.c
 	libtomcrypt/ciphers/aes/aes_tab.c
