@@ -10,10 +10,17 @@ class CustomDevice : public QIODevice
 public:
 	enum class Feature : unsigned char
 	{
-		Encryption
+		Encryption = 1
 	};
 
 	explicit CustomDevice(QIODevice *device, QObject *parent = 0);
+
+	/**
+	 * @param device Underlying device, where processed data is wrote or from which comes data to be read and processed.
+	 * @param features When write to CustomDevice, data is first processed by first feature in the list.
+	 * When read from CustomDevice, data is first processed by last feature in the list.
+	 * It means that same list should be passed when both writing and reading.
+	 */
 	explicit CustomDevice(QIODevice *device, const QList<Feature> &features, QObject *parent = 0);
 
 	void close();

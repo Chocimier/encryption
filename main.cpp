@@ -2,17 +2,17 @@
 #include <QFile>
 
 #include "CustomDevice.h"
-#include "EncryptedFile.h"
+#include "EncryptionDevice.h"
 
 int main()
 {
 	QString key("a");
 	QList<CustomDevice::Feature> features{CustomDevice::Feature::Encryption};
 
-	QFile sourceFile("EncryptedFile.cpp");
+	QFile sourceFile("EncryptionDevice.cpp");
 	QFile file("plik.enc");
 	CustomDevice encryptor(&file, features);
-	dynamic_cast<EncryptedFile*>(encryptor.getChainDevice(0))->setKey(key.toUtf8());
+	dynamic_cast<EncryptionDevice*>(encryptor.getChainDevice(0))->setKey(key.toUtf8());
 
 	sourceFile.open(QIODevice::ReadOnly);
 	encryptor.open(QIODevice::WriteOnly);
@@ -25,7 +25,7 @@ int main()
 	QFile file2("plik.enc");
 	QFile file3("plik.dec");
 	CustomDevice decryptor(&file2, features);
-	dynamic_cast<EncryptedFile*>(decryptor.getChainDevice(0))->setKey(key.toUtf8());
+	dynamic_cast<EncryptionDevice*>(decryptor.getChainDevice(0))->setKey(key.toUtf8());
 
 	decryptor.open(QIODevice::ReadOnly);
 	file3.open(QIODevice::WriteOnly);

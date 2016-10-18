@@ -1,12 +1,12 @@
-#include "EncryptedFile.h"
+#include "EncryptionDevice.h"
 
-char EncryptedFile::m_header[]{'E', 'F', '1'};
-int EncryptedFile::m_PKCSIterationCount = 100;
-int EncryptedFile::m_PKCSSaltSize = 128;
-int EncryptedFile::m_PKCSResultSize = 256;
-int EncryptedFile::m_ctrMode = CTR_COUNTER_LITTLE_ENDIAN;
+char EncryptionDevice::m_header[]{'E', 'F', '1'};
+int EncryptionDevice::m_PKCSIterationCount = 100;
+int EncryptionDevice::m_PKCSSaltSize = 128;
+int EncryptionDevice::m_PKCSResultSize = 256;
+int EncryptionDevice::m_ctrMode = CTR_COUNTER_LITTLE_ENDIAN;
 
-EncryptedFile::EncryptedFile(QIODevice *targetDevice, QObject *parent) : QIODevice(parent),
+EncryptionDevice::EncryptionDevice(QIODevice *targetDevice, QObject *parent) : QIODevice(parent),
 	m_device(targetDevice),
 	m_readingBuffered(0),
 	m_writingBuffered(0),
@@ -25,7 +25,6 @@ EncryptedFile::EncryptedFile(QIODevice *targetDevice, QObject *parent) : QIODevi
 		return;
 	}
 
-
 	m_keySize = hash_descriptor[m_hashIndex].hashsize;
 	m_blockSize = cipher_descriptor[m_cipherIndex].block_length;
 	m_initializationVectorSize = cipher_descriptor[m_cipherIndex].block_length;
@@ -38,7 +37,7 @@ EncryptedFile::EncryptedFile(QIODevice *targetDevice, QObject *parent) : QIODevi
 	m_isValid = true;
 }
 
-void EncryptedFile::close()
+void EncryptionDevice::close()
 {
 	if (openMode().testFlag(QIODevice::WriteOnly))
 	{
@@ -52,19 +51,19 @@ void EncryptedFile::close()
 	m_isValid = false;
 }
 
-bool EncryptedFile::isSequential() const
+bool EncryptionDevice::isSequential() const
 {
 	return true;
 }
 
-bool EncryptedFile::open(QIODevice::OpenMode mode)
+bool EncryptionDevice::open(QIODevice::OpenMode mode)
 {
 	if (isOpen())
 	{
 		return true;
 	}
 
-	if (!m_isValid || !m_hasPlainKey || mode.testFlag(QIODevice::ReadWrite) || mode.testFlag(QIODevice::Append) || !m_device->open(mode))
+	if (!m_isValid || !m_hasPlainKey || mode.testFlag(QIODevice::ReadWrite) || mode.testFlag(QIODevice::Append) || mode.testFlag(QIODevice::Text) || !m_device->open(mode))
 	{
 		return false;
 	}
@@ -92,15 +91,15 @@ bool EncryptedFile::open(QIODevice::OpenMode mode)
 	return true;
 }
 
-void EncryptedFile::setKey(const QByteArray &plainKey)
+void EncryptionDevice::setKey(const QByteArray &plainKey)
 {
 	m_plainKey = plainKey;
 	m_hasPlainKey = true;
 }
 
-qint64 EncryptedFile::readData(char *data, qint64 length)
+qint64 EncryptionDevice::readData(char *data, qint64 length)
 {
-	unsigned char ciphertext[MAXBLOCKSIZE] = {};
+	unsigned char ciphertext[MAXBLOCKSIZE]{};
 	qint64 position(0);
 
 	if (!m_isValid || (m_readAll && m_readingBuffered == 0))
@@ -156,7 +155,7 @@ qint64 EncryptedFile::readData(char *data, qint64 length)
 	return position;
 }
 
-qint64 EncryptedFile::writeData(const char *data, qint64 length)
+qint64 EncryptionDevice::writeData(const char *data, qint64 length)
 {
 	if (!m_isValid)
 	{
@@ -188,9 +187,9 @@ qint64 EncryptedFile::writeData(const char *data, qint64 length)
 	return length;
 }
 
-bool EncryptedFile::writeBufferEncrypted()
+bool EncryptionDevice::writeBufferEncrypted()
 {
-	unsigned char ciphertext[MAXBLOCKSIZE] = {};
+	unsigned char ciphertext[MAXBLOCKSIZE]{};
 
 	if (ctr_encrypt(m_writingBuffer, ciphertext, m_writingBuffered, &m_ctr) != CRYPT_OK)
 	{
@@ -216,7 +215,7 @@ bool EncryptedFile::writeBufferEncrypted()
 	return true;
 }
 
-void EncryptedFile::initReading()
+void EncryptionDevice::initReading()
 {
 	char header[sizeof m_header]{};
 	unsigned char salt[m_PKCSSaltSize]{};
@@ -245,7 +244,7 @@ void EncryptedFile::initReading()
 	}
 }
 
-void EncryptedFile::initWriting()
+void EncryptionDevice::initWriting()
 {
 	unsigned char salt[m_PKCSSaltSize]{};
 	prng_state prng;
@@ -290,7 +289,7 @@ void EncryptedFile::initWriting()
 	}
 }
 
-bool EncryptedFile::applyPKCS(const unsigned char *salt)
+bool EncryptionDevice::applyPKCS(const unsigned char *salt)
 {
 	unsigned char PKCSResult[m_PKCSResultSize]{};
 	unsigned long outputLength(sizeof PKCSResult);

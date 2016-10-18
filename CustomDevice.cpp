@@ -1,13 +1,13 @@
 #include "CustomDevice.h"
 
-#include "EncryptedFile.h"
+#include "EncryptionDevice.h"
 
 CustomDevice::CustomDevice(QIODevice *device, QObject *parent) : CustomDevice(device, QList<CustomDevice::Feature>(), parent)
 {
 }
 
 CustomDevice::CustomDevice(QIODevice *device, const QList<CustomDevice::Feature> &features, QObject *parent) : QIODevice(parent),
-    m_targetDevice(nullptr)
+    m_targetDevice(NULL)
 {
 	m_chainDevices.reserve(features.size());
 
@@ -15,7 +15,7 @@ CustomDevice::CustomDevice(QIODevice *device, const QList<CustomDevice::Feature>
 	{
 		if (features.at(i) == Feature::Encryption)
 		{
-			device = new EncryptedFile(device, this);
+			device = new EncryptionDevice(device, this);
 		}
 
 		m_chainDevices.prepend(device);
@@ -46,7 +46,7 @@ bool CustomDevice::open(QIODevice::OpenMode mode)
 {
 	if (m_targetDevice)
 	{
-		bool open = m_targetDevice->open(mode);
+		bool open(m_targetDevice->open(mode));
 
 		setOpenMode(m_targetDevice->openMode());
 
@@ -60,7 +60,7 @@ QIODevice *CustomDevice::getChainDevice(int index)
 {
 	if (index < 0 || m_chainDevices.size() <= index)
 	{
-		return nullptr;
+		return NULL;
 	}
 
 	return m_chainDevices.at(index);

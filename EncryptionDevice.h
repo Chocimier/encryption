@@ -1,16 +1,16 @@
-#ifndef ENCRYPTEDFILE_H
-#define ENCRYPTEDFILE_H
+#ifndef ENCRYPTIONDEVICE_H
+#define ENCRYPTIONDEVICE_H
 
 #include <QtCore/QIODevice>
 
 #include <tomcrypt.h>
 
-class EncryptedFile : public QIODevice
+class EncryptionDevice : public QIODevice
 {
 	Q_OBJECT
 
 public:
-	explicit EncryptedFile(QIODevice *targetDevice, QObject *parent = 0);
+	explicit EncryptionDevice(QIODevice *targetDevice, QObject *parent = 0);
 
 	void close();
 	bool isSequential() const;
