@@ -234,7 +234,12 @@ void EncryptionDevice::initializeReading()
 		return;
 	}
 
-	applyPKCS(salt);
+	if (!applyPKCS(salt))
+	{
+		m_isValid = false;
+
+		return;
+	}
 
 	if (ctr_start(m_cipherIndex, m_initializationVector, m_key, m_keySize, 0, m_ctrMode, &m_ctr) != CRYPT_OK)
 	{
