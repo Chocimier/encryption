@@ -220,28 +220,13 @@ void EncryptionDevice::initializeReading()
 	char header[sizeof m_header]{};
 	unsigned char salt[m_PKCSSaltSize]{};
 
-	if ((m_device->read(header, sizeof m_header) != sizeof m_header) || memcmp(m_header, header, sizeof m_header))
-	{
-		m_isValid = false;
-
-		return;
-	}
-
-	if (m_device->read(reinterpret_cast<char*>(salt), sizeof salt) != sizeof salt)
-	{
-		m_isValid = false;
-
-		return;
-	}
-
-	if (!applyPKCS(salt))
-	{
-		m_isValid = false;
-
-		return;
-	}
-
-	if (ctr_start(m_cipherIndex, m_initializationVector, m_key, m_keySize, 0, m_ctrMode, &m_ctr) != CRYPT_OK)
+	if (
+			(m_device->read(header, sizeof m_header) != sizeof m_header) ||
+			memcmp(m_header, header, sizeof m_header) ||
+			(m_device->read(reinterpret_cast<char*>(salt), sizeof salt) != sizeof salt) ||
+			(!applyPKCS(salt)) ||
+			(ctr_start(m_cipherIndex, m_initializationVector, m_key, m_keySize, 0, m_ctrMode, &m_ctr) != CRYPT_OK)
+	)
 	{
 		m_isValid = false;
 
@@ -258,35 +243,13 @@ void EncryptionDevice::initializeWriting()
 
 	const int randomBytesRead(fortuna_read(salt, sizeof salt, &prng));
 
-	if (randomBytesRead != sizeof salt)
-	{
-		m_isValid = false;
-
-		return;
-	}
-
-	if (!applyPKCS(salt))
-	{
-		m_isValid = false;
-
-		return;
-	}
-
-	if (ctr_start(m_cipherIndex, m_initializationVector, m_key, m_keySize, 0, m_ctrMode, &m_ctr) != CRYPT_OK)
-	{
-		m_isValid = false;
-
-		return;
-	}
-
-	if (m_device->write(m_header, sizeof m_header) != sizeof m_header)
-	{
-		m_isValid = false;
-
-		return;
-	}
-
-	if (m_device->write(reinterpret_cast<const char*>(salt), sizeof salt) != sizeof salt)
+	if (
+			(randomBytesRead != sizeof salt) ||
+			(!applyPKCS(salt)) ||
+			(ctr_start(m_cipherIndex, m_initializationVector, m_key, m_keySize, 0, m_ctrMode, &m_ctr) != CRYPT_OK) ||
+			(m_device->write(m_header, sizeof m_header) != sizeof m_header) ||
+			(m_device->write(reinterpret_cast<const char*>(salt), sizeof salt) != sizeof salt)
+	)
 	{
 		m_isValid = false;
 
