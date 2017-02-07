@@ -46,17 +46,17 @@ bool CustomDevice::open(QIODevice::OpenMode mode)
 {
 	if (m_targetDevice)
 	{
-		bool open(m_targetDevice->open(mode));
+		bool result(m_targetDevice->open(mode));
 
 		setOpenMode(m_targetDevice->openMode());
 
-		return open;
+		return result;
 	}
 
 	return false;
 }
 
-QIODevice *CustomDevice::getChainDevice(int index)
+QIODevice* CustomDevice::getChainDevice(int index)
 {
 	if (index < 0 || m_chainDevices.size() <= index)
 	{

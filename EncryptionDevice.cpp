@@ -72,11 +72,11 @@ bool EncryptionDevice::open(QIODevice::OpenMode mode)
 
 	if (mode.testFlag(QIODevice::ReadOnly))
 	{
-		initReading();
+		initializeReading();
 	}
 	else if (mode.testFlag(QIODevice::WriteOnly))
 	{
-		initWriting();
+		initializeWriting();
 	}
 
 	if (!m_isValid)
@@ -215,7 +215,7 @@ bool EncryptionDevice::writeBufferEncrypted()
 	return true;
 }
 
-void EncryptionDevice::initReading()
+void EncryptionDevice::initializeReading()
 {
 	char header[sizeof m_header]{};
 	unsigned char salt[m_PKCSSaltSize]{};
@@ -244,7 +244,7 @@ void EncryptionDevice::initReading()
 	}
 }
 
-void EncryptionDevice::initWriting()
+void EncryptionDevice::initializeWriting()
 {
 	unsigned char salt[m_PKCSSaltSize]{};
 	prng_state prng;
