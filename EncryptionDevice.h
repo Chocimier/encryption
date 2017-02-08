@@ -18,11 +18,11 @@ public:
 	void setKey(const QByteArray &plainKey);
 
 protected:
+	void initializeReading();
+	void initializeWriting();
 	qint64 readData(char *data, qint64 length);
 	qint64 writeData(const char *data, qint64 length);
 	bool writeBufferEncrypted();
-	void initializeReading();
-	void initializeWriting();
 	bool applyPKCS(const unsigned char *salt);
 
 private:

@@ -97,6 +97,48 @@ void EncryptionDevice::setKey(const QByteArray &plainKey)
 	m_hasPlainKey = true;
 }
 
+void EncryptionDevice::initializeReading()
+{
+	char header[sizeof m_header]{};
+	unsigned char salt[m_PKCSSaltSize]{};
+
+	if (
+			(m_device->read(header, sizeof m_header) != sizeof m_header) ||
+			memcmp(m_header, header, sizeof m_header) ||
+			(m_device->read(reinterpret_cast<char*>(salt), sizeof salt) != sizeof salt) ||
+			(!applyPKCS(salt)) ||
+			(ctr_start(m_cipherIndex, m_initializationVector, m_key, m_keySize, 0, m_ctrMode, &m_ctr) != CRYPT_OK)
+	)
+	{
+		m_isValid = false;
+
+		return;
+	}
+}
+
+void EncryptionDevice::initializeWriting()
+{
+	unsigned char salt[m_PKCSSaltSize]{};
+	prng_state prng;
+
+	rng_make_prng(128, find_prng("fortuna"), &prng, NULL);
+
+	const int randomBytesRead(fortuna_read(salt, sizeof salt, &prng));
+
+	if (
+			(randomBytesRead != sizeof salt) ||
+			(!applyPKCS(salt)) ||
+			(ctr_start(m_cipherIndex, m_initializationVector, m_key, m_keySize, 0, m_ctrMode, &m_ctr) != CRYPT_OK) ||
+			(m_device->write(m_header, sizeof m_header) != sizeof m_header) ||
+			(m_device->write(reinterpret_cast<const char*>(salt), sizeof salt) != sizeof salt)
+	)
+	{
+		m_isValid = false;
+
+		return;
+	}
+}
+
 qint64 EncryptionDevice::readData(char *data, qint64 length)
 {
 	unsigned char ciphertext[MAXBLOCKSIZE]{};
@@ -213,48 +255,6 @@ bool EncryptionDevice::writeBufferEncrypted()
 	m_writingBuffered = 0;
 
 	return true;
-}
-
-void EncryptionDevice::initializeReading()
-{
-	char header[sizeof m_header]{};
-	unsigned char salt[m_PKCSSaltSize]{};
-
-	if (
-			(m_device->read(header, sizeof m_header) != sizeof m_header) ||
-			memcmp(m_header, header, sizeof m_header) ||
-			(m_device->read(reinterpret_cast<char*>(salt), sizeof salt) != sizeof salt) ||
-			(!applyPKCS(salt)) ||
-			(ctr_start(m_cipherIndex, m_initializationVector, m_key, m_keySize, 0, m_ctrMode, &m_ctr) != CRYPT_OK)
-	)
-	{
-		m_isValid = false;
-
-		return;
-	}
-}
-
-void EncryptionDevice::initializeWriting()
-{
-	unsigned char salt[m_PKCSSaltSize]{};
-	prng_state prng;
-
-	rng_make_prng(128, find_prng("fortuna"), &prng, NULL);
-
-	const int randomBytesRead(fortuna_read(salt, sizeof salt, &prng));
-
-	if (
-			(randomBytesRead != sizeof salt) ||
-			(!applyPKCS(salt)) ||
-			(ctr_start(m_cipherIndex, m_initializationVector, m_key, m_keySize, 0, m_ctrMode, &m_ctr) != CRYPT_OK) ||
-			(m_device->write(m_header, sizeof m_header) != sizeof m_header) ||
-			(m_device->write(reinterpret_cast<const char*>(salt), sizeof salt) != sizeof salt)
-	)
-	{
-		m_isValid = false;
-
-		return;
-	}
 }
 
 bool EncryptionDevice::applyPKCS(const unsigned char *salt)
