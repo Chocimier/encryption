@@ -29,12 +29,11 @@ EncryptionDevice::EncryptionDevice(QIODevice *targetDevice, QObject *parent) : Q
 	m_blockSize = cipher_descriptor[m_cipherIndex].block_length;
 	m_initializationVectorSize = cipher_descriptor[m_cipherIndex].block_length;
 
-	if (cipher_descriptor[m_cipherIndex].keysize(&m_keySize) != CRYPT_OK)
+	if (cipher_descriptor[m_cipherIndex].keysize(&m_keySize) == CRYPT_OK)
 	{
-		return;
+		m_isValid = true;
 	}
 
-	m_isValid = true;
 }
 
 void EncryptionDevice::close()
@@ -102,18 +101,11 @@ void EncryptionDevice::initializeReading()
 	char header[sizeof m_header]{};
 	unsigned char salt[m_PKCSSaltSize]{};
 
-	if (
-			(m_device->read(header, sizeof m_header) != sizeof m_header) ||
-			memcmp(m_header, header, sizeof m_header) ||
-			(m_device->read(reinterpret_cast<char*>(salt), sizeof salt) != sizeof salt) ||
-			(!applyPKCS(salt)) ||
-			(ctr_start(m_cipherIndex, m_initializationVector, m_key, m_keySize, 0, m_ctrMode, &m_ctr) != CRYPT_OK)
-	)
-	{
-		m_isValid = false;
-
-		return;
-	}
+	m_isValid &= (m_device->read(header, sizeof m_header) == sizeof m_header);
+	m_isValid &= !memcmp(m_header, header, sizeof m_header);
+	m_isValid &= (m_device->read(reinterpret_cast<char*>(salt), sizeof salt) == sizeof salt);
+	m_isValid &= applyPKCS(salt);
+	m_isValid &= (ctr_start(m_cipherIndex, m_initializationVector, m_key, m_keySize, 0, m_ctrMode, &m_ctr) == CRYPT_OK);
 }
 
 void EncryptionDevice::initializeWriting()
@@ -125,18 +117,11 @@ void EncryptionDevice::initializeWriting()
 
 	const int randomBytesRead(fortuna_read(salt, sizeof salt, &prng));
 
-	if (
-			(randomBytesRead != sizeof salt) ||
-			(!applyPKCS(salt)) ||
-			(ctr_start(m_cipherIndex, m_initializationVector, m_key, m_keySize, 0, m_ctrMode, &m_ctr) != CRYPT_OK) ||
-			(m_device->write(m_header, sizeof m_header) != sizeof m_header) ||
-			(m_device->write(reinterpret_cast<const char*>(salt), sizeof salt) != sizeof salt)
-	)
-	{
-		m_isValid = false;
-
-		return;
-	}
+	m_isValid &= (randomBytesRead == sizeof salt);
+	m_isValid &= applyPKCS(salt);
+	m_isValid &= (ctr_start(m_cipherIndex, m_initializationVector, m_key, m_keySize, 0, m_ctrMode, &m_ctr) == CRYPT_OK);
+	m_isValid &= (m_device->write(m_header, sizeof m_header) == sizeof m_header);
+	m_isValid &= (m_device->write(reinterpret_cast<const char*>(salt), sizeof salt) == sizeof salt);
 }
 
 qint64 EncryptionDevice::readData(char *data, qint64 length)
