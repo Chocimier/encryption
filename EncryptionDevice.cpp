@@ -1,6 +1,9 @@
 #include "EncryptionDevice.h"
 
-char EncryptionDevice::m_header[]{'E', 'F', '1'};
+#include <cstring>
+
+const char *EncryptionDevice::m_header("otter.aes\n1\n");
+int EncryptionDevice::m_headerSize(std::strlen(m_header));
 int EncryptionDevice::m_PKCSIterationCount = 100;
 int EncryptionDevice::m_PKCSSaltSize = 128;
 int EncryptionDevice::m_PKCSResultSize = 256;
@@ -101,11 +104,11 @@ void EncryptionDevice::setKey(const QByteArray &plainKey)
 
 void EncryptionDevice::initializeReading()
 {
-	char header[sizeof m_header]{};
+	char header[m_headerSize]{};
 	unsigned char salt[m_PKCSSaltSize]{};
 
-	m_isValid &= (m_device->read(header, sizeof m_header) == sizeof m_header);
-	m_isValid &= !memcmp(m_header, header, sizeof m_header);
+	m_isValid &= (m_device->read(header, m_headerSize) == m_headerSize);
+	m_isValid &= !memcmp(m_header, header, m_headerSize);
 	m_isValid &= (m_device->read(reinterpret_cast<char*>(salt), sizeof salt) == sizeof salt);
 	m_isValid &= applyPKCS(salt);
 	m_isValid &= (ctr_start(m_cipherIndex, m_initializationVector, m_key, m_keySize, 0, m_ctrMode, &m_ctr) == CRYPT_OK);
@@ -124,7 +127,7 @@ void EncryptionDevice::initializeWriting()
 	m_isValid &= (randomBytesRead == sizeof salt);
 	m_isValid &= applyPKCS(salt);
 	m_isValid &= (ctr_start(m_cipherIndex, m_initializationVector, m_key, m_keySize, 0, m_ctrMode, &m_ctr) == CRYPT_OK);
-	m_isValid &= (m_device->write(m_header, sizeof m_header) == sizeof m_header);
+	m_isValid &= (m_device->write(m_header, m_headerSize) == m_headerSize);
 	m_isValid &= (m_device->write(reinterpret_cast<const char*>(salt), sizeof salt) == sizeof salt);
 }
 

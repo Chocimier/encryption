@@ -44,7 +44,8 @@ private:
 	bool m_isValid;
 	bool m_readAll;
 
-	static char m_header[];
+	static const char *m_header;
+	static int m_headerSize;
 	static int m_PKCSIterationCount;
 	static int m_PKCSSaltSize;
 	static int m_PKCSResultSize;
