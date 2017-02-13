@@ -9,9 +9,12 @@ int EncryptionDevice::m_ctrMode = CTR_COUNTER_LITTLE_ENDIAN;
 EncryptionDevice::EncryptionDevice(QIODevice *targetDevice, QObject *parent) : QIODevice(parent),
 	m_device(targetDevice),
 	m_readingBuffered(0),
+	m_blockSize(16),
+	m_initializationVectorSize(16),
+	m_keySize(32),
 	m_writingBuffered(0),
 	m_hasPlainKey(false),
-	m_isValid(false),
+	m_isValid(true),
 	m_readAll(false)
 {
 	register_cipher(&aes_desc);
@@ -20,20 +23,20 @@ EncryptionDevice::EncryptionDevice(QIODevice *targetDevice, QObject *parent) : Q
 	m_cipherIndex = find_cipher("aes");
 	m_hashIndex = find_hash("sha256");
 
-	if (m_cipherIndex == -1  || m_hashIndex == -1 || register_prng(&fortuna_desc) == -1 || register_prng(&sprng_desc) == -1)
+	m_isValid &= (m_cipherIndex != -1);
+	m_isValid &= (m_hashIndex != -1);
+
+	if (!m_isValid)
 	{
 		return;
 	}
 
-	m_keySize = hash_descriptor[m_hashIndex].hashsize;
-	m_blockSize = cipher_descriptor[m_cipherIndex].block_length;
-	m_initializationVectorSize = cipher_descriptor[m_cipherIndex].block_length;
-
-	if (cipher_descriptor[m_cipherIndex].keysize(&m_keySize) == CRYPT_OK)
-	{
-		m_isValid = true;
-	}
-
+	m_isValid &= (register_prng(&fortuna_desc) != -1);
+	m_isValid &= (register_prng(&sprng_desc) != -1);
+	m_isValid &= (m_keySize == hash_descriptor[m_hashIndex].hashsize);
+	m_isValid &= (m_blockSize == cipher_descriptor[m_cipherIndex].block_length);
+	m_isValid &= (m_initializationVectorSize == cipher_descriptor[m_cipherIndex].block_length);
+	m_isValid &= (cipher_descriptor[m_cipherIndex].keysize(&m_keySize) == CRYPT_OK);
 }
 
 void EncryptionDevice::close()
@@ -112,8 +115,9 @@ void EncryptionDevice::initializeWriting()
 {
 	unsigned char salt[m_PKCSSaltSize]{};
 	prng_state prng;
+	const int entropy(128);
 
-	rng_make_prng(128, find_prng("fortuna"), &prng, NULL);
+	rng_make_prng(entropy, find_prng("fortuna"), &prng, NULL);
 
 	const int randomBytesRead(fortuna_read(salt, sizeof salt, &prng));
 
@@ -126,7 +130,7 @@ void EncryptionDevice::initializeWriting()
 
 qint64 EncryptionDevice::readData(char *data, qint64 length)
 {
-	unsigned char ciphertext[MAXBLOCKSIZE]{};
+	unsigned char ciphertext[m_blockSize]{};
 	qint64 position(0);
 
 	if (!m_isValid || (m_readAll && m_readingBuffered == 0))
@@ -216,7 +220,7 @@ qint64 EncryptionDevice::writeData(const char *data, qint64 length)
 
 bool EncryptionDevice::writeBufferEncrypted()
 {
-	unsigned char ciphertext[MAXBLOCKSIZE]{};
+	unsigned char ciphertext[m_blockSize]{};
 
 	if (ctr_encrypt(m_writingBuffer, ciphertext, m_writingBuffered, &m_ctr) != CRYPT_OK)
 	{
