@@ -4,9 +4,9 @@
 
 const char *EncryptionDevice::m_header("otter.aes\n1\n");
 int EncryptionDevice::m_headerSize(std::strlen(m_header));
-int EncryptionDevice::m_PKCSIterationCount = 100;
-int EncryptionDevice::m_PKCSSaltSize = 128;
-int EncryptionDevice::m_PKCSResultSize = 256;
+int EncryptionDevice::m_pkcsIterationCount = 100;
+int EncryptionDevice::m_pkcsSaltSize = 128;
+int EncryptionDevice::m_pkcsResultSize = 256;
 int EncryptionDevice::m_ctrMode = CTR_COUNTER_LITTLE_ENDIAN;
 
 EncryptionDevice::EncryptionDevice(QIODevice *targetDevice, QObject *parent) : QIODevice(parent),
@@ -29,17 +29,15 @@ EncryptionDevice::EncryptionDevice(QIODevice *targetDevice, QObject *parent) : Q
 	m_isValid &= (m_cipherIndex != -1);
 	m_isValid &= (m_hashIndex != -1);
 
-	if (!m_isValid)
+	if (m_isValid)
 	{
-		return;
+		m_isValid &= (register_prng(&fortuna_desc) != -1);
+		m_isValid &= (register_prng(&sprng_desc) != -1);
+		m_isValid &= (m_keySize == hash_descriptor[m_hashIndex].hashsize);
+		m_isValid &= (m_blockSize == cipher_descriptor[m_cipherIndex].block_length);
+		m_isValid &= (m_initializationVectorSize == cipher_descriptor[m_cipherIndex].block_length);
+		m_isValid &= (cipher_descriptor[m_cipherIndex].keysize(&m_keySize) == CRYPT_OK);
 	}
-
-	m_isValid &= (register_prng(&fortuna_desc) != -1);
-	m_isValid &= (register_prng(&sprng_desc) != -1);
-	m_isValid &= (m_keySize == hash_descriptor[m_hashIndex].hashsize);
-	m_isValid &= (m_blockSize == cipher_descriptor[m_cipherIndex].block_length);
-	m_isValid &= (m_initializationVectorSize == cipher_descriptor[m_cipherIndex].block_length);
-	m_isValid &= (cipher_descriptor[m_cipherIndex].keysize(&m_keySize) == CRYPT_OK);
 }
 
 void EncryptionDevice::close()
@@ -105,18 +103,18 @@ void EncryptionDevice::setKey(const QByteArray &plainKey)
 void EncryptionDevice::initializeReading()
 {
 	char header[m_headerSize]{};
-	unsigned char salt[m_PKCSSaltSize]{};
+	unsigned char salt[m_pkcsSaltSize]{};
 
 	m_isValid &= (m_device->read(header, m_headerSize) == m_headerSize);
 	m_isValid &= !memcmp(m_header, header, m_headerSize);
 	m_isValid &= (m_device->read(reinterpret_cast<char*>(salt), sizeof salt) == sizeof salt);
-	m_isValid &= applyPKCS(salt);
+	m_isValid &= applyPkcs(salt);
 	m_isValid &= (ctr_start(m_cipherIndex, m_initializationVector, m_key, m_keySize, 0, m_ctrMode, &m_ctr) == CRYPT_OK);
 }
 
 void EncryptionDevice::initializeWriting()
 {
-	unsigned char salt[m_PKCSSaltSize]{};
+	unsigned char salt[m_pkcsSaltSize]{};
 	prng_state prng;
 	const int entropy(128);
 
@@ -125,7 +123,7 @@ void EncryptionDevice::initializeWriting()
 	const int randomBytesRead(fortuna_read(salt, sizeof salt, &prng));
 
 	m_isValid &= (randomBytesRead == sizeof salt);
-	m_isValid &= applyPKCS(salt);
+	m_isValid &= applyPkcs(salt);
 	m_isValid &= (ctr_start(m_cipherIndex, m_initializationVector, m_key, m_keySize, 0, m_ctrMode, &m_ctr) == CRYPT_OK);
 	m_isValid &= (m_device->write(m_header, m_headerSize) == m_headerSize);
 	m_isValid &= (m_device->write(reinterpret_cast<const char*>(salt), sizeof salt) == sizeof salt);
@@ -249,19 +247,18 @@ bool EncryptionDevice::writeBufferEncrypted()
 	return true;
 }
 
-bool EncryptionDevice::applyPKCS(const unsigned char *salt)
+bool EncryptionDevice::applyPkcs(const unsigned char *salt)
 {
-	unsigned char PKCSResult[m_PKCSResultSize]{};
-	unsigned long outputLength(sizeof PKCSResult);
+	unsigned char pkcsResult[m_pkcsResultSize]{};
+	unsigned long outputLength(sizeof pkcsResult);
 
-	if (pkcs_5_alg2(reinterpret_cast<const unsigned char*>(m_plainKey.constData()), m_plainKey.size(), salt, m_PKCSSaltSize, m_PKCSIterationCount, m_hashIndex, PKCSResult, &outputLength) != CRYPT_OK)
+	if (pkcs_5_alg2(reinterpret_cast<const unsigned char*>(m_plainKey.constData()), m_plainKey.size(), salt, m_pkcsSaltSize, m_pkcsIterationCount, m_hashIndex, pkcsResult, &outputLength) != CRYPT_OK)
 	{
 		return false;
 	}
 
-	memcpy(m_key, PKCSResult, m_keySize);
-	memcpy(m_initializationVector, (PKCSResult + m_keySize), m_initializationVectorSize);
+	memcpy(m_key, pkcsResult, m_keySize);
+	memcpy(m_initializationVector, (pkcsResult + m_keySize), m_initializationVectorSize);
 
 	return true;
-
 }

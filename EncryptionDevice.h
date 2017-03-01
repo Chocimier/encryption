@@ -10,7 +10,7 @@ class EncryptionDevice : public QIODevice
 	Q_OBJECT
 
 public:
-	explicit EncryptionDevice(QIODevice *targetDevice, QObject *parent = 0);
+	explicit EncryptionDevice(QIODevice *targetDevice, QObject *parent = nullptr) override;
 
 	void close();
 	bool isSequential() const;
@@ -23,7 +23,7 @@ protected:
 	qint64 readData(char *data, qint64 length);
 	qint64 writeData(const char *data, qint64 length);
 	bool writeBufferEncrypted();
-	bool applyPKCS(const unsigned char *salt);
+	bool applyPkcs(const unsigned char *salt);
 
 private:
 	QIODevice *m_device;
@@ -46,9 +46,9 @@ private:
 
 	static const char *m_header;
 	static int m_headerSize;
-	static int m_PKCSIterationCount;
-	static int m_PKCSSaltSize;
-	static int m_PKCSResultSize;
+	static int m_pkcsIterationCount;
+	static int m_pkcsSaltSize;
+	static int m_pkcsResultSize;
 	static int m_ctrMode;
 };
 
