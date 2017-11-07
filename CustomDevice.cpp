@@ -13,10 +13,21 @@ CustomDevice::CustomDevice(QIODevice *device, const QList<CustomDevice::Feature>
 
 	for (int i = features.size() - 1; i >= 0; --i)
 	{
-		if (features.at(i) == Feature::Encryption)
+		switch (features.at(i))
 		{
-			device = new EncryptionDevice(device, this);
+			case Feature::Encryption:
+				device = new EncryptionDevice(device, this);
+
+				break;
+			case Feature::NakedEncryption:
+				{
+					EncryptionDevice *encryptionDevice = new EncryptionDevice(device, this);
+					encryptionDevice->setHeaderEnabled(false);
+					device = encryptionDevice;
+				}
+				break;
 		}
+
 
 		m_chainDevices.prepend(device);
 	}

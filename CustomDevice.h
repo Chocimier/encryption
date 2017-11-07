@@ -10,7 +10,8 @@ class CustomDevice : public QIODevice
 public:
 	enum class Feature : unsigned char
 	{
-		Encryption = 1
+		Encryption = 1,
+		NakedEncryption = 2
 	};
 
 	explicit CustomDevice(QIODevice *device, QObject *parent = 0);

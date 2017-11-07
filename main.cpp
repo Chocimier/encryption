@@ -7,7 +7,7 @@
 int main()
 {
 	QString key("a");
-	QList<CustomDevice::Feature> features{CustomDevice::Feature::Encryption};
+	QList<CustomDevice::Feature> features{CustomDevice::Feature::NakedEncryption};
 
 	QFile sourceFile("EncryptionDevice.cpp");
 	QFile file("plik.enc");

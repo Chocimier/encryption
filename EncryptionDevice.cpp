@@ -16,6 +16,7 @@ EncryptionDevice::EncryptionDevice(QIODevice *targetDevice, QObject *parent) : Q
 	m_initializationVectorSize(16),
 	m_keySize(32),
 	m_writingBuffered(0),
+	m_headerEnabled(true),
 	m_hasPlainKey(false),
 	m_isValid(true),
 	m_readAll(false)
@@ -105,8 +106,11 @@ void EncryptionDevice::initializeReading()
 	char header[m_headerSize]{};
 	unsigned char salt[m_pkcsSaltSize]{};
 
-	m_isValid &= (m_device->read(header, m_headerSize) == m_headerSize);
-	m_isValid &= !memcmp(m_header, header, m_headerSize);
+	if (m_headerEnabled)
+	{
+		m_isValid &= (m_device->read(header, m_headerSize) == m_headerSize);
+		m_isValid &= !memcmp(m_header, header, m_headerSize);
+	}
 	m_isValid &= (m_device->read(reinterpret_cast<char*>(salt), sizeof salt) == sizeof salt);
 	m_isValid &= applyPkcs(salt);
 	m_isValid &= (ctr_start(m_cipherIndex, m_initializationVector, m_key, m_keySize, 0, m_ctrMode, &m_ctr) == CRYPT_OK);
@@ -125,7 +129,10 @@ void EncryptionDevice::initializeWriting()
 	m_isValid &= (randomBytesRead == sizeof salt);
 	m_isValid &= applyPkcs(salt);
 	m_isValid &= (ctr_start(m_cipherIndex, m_initializationVector, m_key, m_keySize, 0, m_ctrMode, &m_ctr) == CRYPT_OK);
-	m_isValid &= (m_device->write(m_header, m_headerSize) == m_headerSize);
+	if (m_headerEnabled)
+	{
+		m_isValid &= (m_device->write(m_header, m_headerSize) == m_headerSize);
+	}
 	m_isValid &= (m_device->write(reinterpret_cast<const char*>(salt), sizeof salt) == sizeof salt);
 }
 
@@ -261,4 +268,9 @@ bool EncryptionDevice::applyPkcs(const unsigned char *salt)
 	memcpy(m_initializationVector, (pkcsResult + m_keySize), m_initializationVectorSize);
 
 	return true;
+}
+
+void EncryptionDevice::setHeaderEnabled(bool headerEnabled)
+{
+    m_headerEnabled = headerEnabled;
 }

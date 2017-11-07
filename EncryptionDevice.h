@@ -10,12 +10,15 @@ class EncryptionDevice : public QIODevice
 	Q_OBJECT
 
 public:
-	explicit EncryptionDevice(QIODevice *targetDevice, QObject *parent = nullptr) override;
+	explicit EncryptionDevice(QIODevice *targetDevice, QObject *parent = nullptr);
 
 	void close();
 	bool isSequential() const;
 	bool open(OpenMode mode);
 	void setKey(const QByteArray &plainKey);
+
+public slots:
+	void setHeaderEnabled(bool headerEnabled);
 
 protected:
 	void initializeReading();
@@ -40,6 +43,7 @@ private:
 	int m_initializationVectorSize;
 	int m_keySize;
 	int m_writingBuffered;
+	bool m_headerEnabled;
 	bool m_hasPlainKey;
 	bool m_isValid;
 	bool m_readAll;
