@@ -12,19 +12,17 @@ class EncryptionDevice : public QIODevice
 public:
 	explicit EncryptionDevice(QIODevice *targetDevice, QObject *parent = nullptr);
 
-	void close();
-	bool isSequential() const;
-	bool open(OpenMode mode);
+	void close() override;
 	void setKey(const QByteArray &plainKey);
+	bool isSequential() const override;
+	bool open(OpenMode mode) override;
 
 public slots:
 	void setHeaderEnabled(bool headerEnabled);
 
 protected:
-	void initializeReading();
-	void initializeWriting();
-	qint64 readData(char *data, qint64 length);
-	qint64 writeData(const char *data, qint64 length);
+	qint64 readData(char *data, qint64 length) override;
+	qint64 writeData(const char *data, qint64 length) override;
 	bool writeBufferEncrypted();
 	bool applyPkcs(const unsigned char *salt);
 

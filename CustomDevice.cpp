@@ -7,7 +7,7 @@ CustomDevice::CustomDevice(QIODevice *device, QObject *parent) : CustomDevice(de
 }
 
 CustomDevice::CustomDevice(QIODevice *device, const QList<CustomDevice::Feature> &features, QObject *parent) : QIODevice(parent),
-    m_targetDevice(NULL)
+    m_targetDevice(nullptr)
 {
 	m_chainDevices.reserve(features.size());
 
@@ -71,7 +71,7 @@ QIODevice* CustomDevice::getChainDevice(int index)
 {
 	if (index < 0 || m_chainDevices.size() <= index)
 	{
-		return NULL;
+		return nullptr;
 	}
 
 	return m_chainDevices.at(index);
